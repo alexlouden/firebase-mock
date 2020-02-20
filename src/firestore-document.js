@@ -27,18 +27,18 @@ function MockFirestoreDocument(path, data, parent, name, CollectionReference) {
   this._dataChanged(_.cloneDeep(data) || null);
 }
 
-MockFirestoreDocument.prototype.flush = function (delay) {
+MockFirestoreDocument.prototype.flush = function(delay) {
   this.queue.flush(delay);
   return this;
 };
 
-MockFirestoreDocument.prototype.autoFlush = function (delay) {
+MockFirestoreDocument.prototype.autoFlush = function(delay) {
   if (_.isUndefined(delay)) {
     delay = true;
   }
   if (this.flushDelay !== delay) {
     this.flushDelay = delay;
-    _.forEach(this.children, function (child) {
+    _.forEach(this.children, function(child) {
       child.autoFlush(delay);
     });
     if (this.parent) {
@@ -48,25 +48,31 @@ MockFirestoreDocument.prototype.autoFlush = function (delay) {
   return this;
 };
 
-MockFirestoreDocument.prototype.getFlushQueue = function () {
+MockFirestoreDocument.prototype.getFlushQueue = function() {
   return this.queue.getEvents();
 };
 
-MockFirestoreDocument.prototype._getData = function () {
+MockFirestoreDocument.prototype._getData = function() {
   return _.cloneDeep(this.data);
 };
 
-MockFirestoreDocument.prototype.toString = function () {
+MockFirestoreDocument.prototype.toString = function() {
   return this.path;
 };
 
-MockFirestoreDocument.prototype.collection = function (path) {
+MockFirestoreDocument.prototype.collection = function(path) {
   assert(path, 'A child path is required');
   var parts = _.compact(path.split('/'));
   var childKey = parts.shift();
   var child = this.children[childKey];
   if (!child) {
-    child = new this.CollectionReference(utils.mergePaths(this.path, childKey), this._childData(childKey), this, childKey, MockFirestoreDocument);
+    child = new this.CollectionReference(
+      utils.mergePaths(this.path, childKey),
+      this._childData(childKey),
+      this,
+      childKey,
+      MockFirestoreDocument
+    );
     this.children[child.id] = child;
   }
   if (parts.length > 0) {
@@ -75,11 +81,11 @@ MockFirestoreDocument.prototype.collection = function (path) {
   return child;
 };
 
-MockFirestoreDocument.prototype.get = function () {
+MockFirestoreDocument.prototype.get = function() {
   var err = this._nextErr('get');
   var self = this;
-  return new Promise(function (resolve, reject) {
-    self._defer('get', _.toArray(arguments), function () {
+  return new Promise(function(resolve, reject) {
+    self._defer('get', _.toArray(arguments), function() {
       if (err === null) {
         resolve(new DocumentSnapshot(self.id, self.ref, self._getData()));
       } else {
@@ -89,7 +95,7 @@ MockFirestoreDocument.prototype.get = function () {
   });
 };
 
-MockFirestoreDocument.prototype._validateDoesNotExist = function (data) {
+MockFirestoreDocument.prototype._validateDoesNotExist = function(data) {
   var ALREADY_EXISTS_CODE = 6;
 
   if (data !== null) {
@@ -100,14 +106,13 @@ MockFirestoreDocument.prototype._validateDoesNotExist = function (data) {
   return null;
 };
 
-MockFirestoreDocument.prototype.create = function (data, callback) {
+MockFirestoreDocument.prototype.create = function(data, callback) {
   var err = this._nextErr('create');
   data = _.cloneDeep(data);
 
   var self = this;
-  return new Promise(function (resolve, reject) {
-    self._defer('create', _.toArray(arguments), function () {
-
+  return new Promise(function(resolve, reject) {
+    self._defer('create', _.toArray(arguments), function() {
       var base = self._getData();
       err = err || self._validateDoesNotExist(base);
       if (err === null) {
@@ -117,16 +122,16 @@ MockFirestoreDocument.prototype.create = function (data, callback) {
         self._dataChanged(data);
         resolve(result);
       } else {
-          if (callback) {
-            callback(err);
+        if (callback) {
+          callback(err);
         }
-          reject(err);
+        reject(err);
       }
     });
   });
 };
 
-MockFirestoreDocument.prototype.set = function (data, opts, callback) {
+MockFirestoreDocument.prototype.set = function(data, opts, callback) {
   var _opts = _.assign({}, { merge: false }, opts);
   if (_opts.merge) {
     return this._update(data, { setMerge: true }, callback);
@@ -134,10 +139,13 @@ MockFirestoreDocument.prototype.set = function (data, opts, callback) {
   var err = this._nextErr('set');
   data = _.cloneDeep(data);
   var self = this;
-  return new Promise(function (resolve, reject) {
-    self._defer('set', _.toArray(arguments), function () {
+  return new Promise(function(resolve, reject) {
+    self._defer('set', _.toArray(arguments), function() {
       if (err === null) {
-        data = utils.removeEmptyFirestoreProperties(data, utils.getServerTime());
+        data = utils.removeEmptyFirestoreProperties(
+          data,
+          utils.getServerTime()
+        );
         self._dataChanged(data);
         resolve();
       } else {
@@ -150,13 +158,17 @@ MockFirestoreDocument.prototype.set = function (data, opts, callback) {
   });
 };
 
-MockFirestoreDocument.prototype._update = function (changes, opts, callback) {
-  assert.equal(typeof changes, 'object', 'First argument must be an object when calling "update"');
+MockFirestoreDocument.prototype._update = function(changes, opts, callback) {
+  assert.equal(
+    typeof changes,
+    'object',
+    'First argument must be an object when calling "update"'
+  );
   var _opts = _.assign({}, { setMerge: false }, opts);
   var err = this._nextErr('update');
   var self = this;
-  return new Promise(function (resolve, reject) {
-    self._defer('update', _.toArray(arguments), function () {
+  return new Promise(function(resolve, reject) {
+    self._defer('update', _.toArray(arguments), function() {
       if (!err) {
         var base = self._getData();
         var original = _.cloneDeep(base);
@@ -165,15 +177,29 @@ MockFirestoreDocument.prototype._update = function (changes, opts, callback) {
           data = _.merge(_.isObject(base) ? base : {}, changes);
         } else {
           // check if changes contain no nested objects
-          if (_.every(Object.keys(changes), function(key) { return !_.isObject(changes[key]); })) {
+          if (
+            _.every(Object.keys(changes), function(key) {
+              return !_.isObject(changes[key]);
+            })
+          ) {
             // allow data to be merged, which allows merging of nested data
-            data = _.merge(_.isObject(base) ? base : {}, utils.updateToFirestoreObject(changes));
+            data = _.merge(
+              _.isObject(base) ? base : {},
+              utils.updateToFirestoreObject(changes)
+            );
           } else {
             // don't allow data to be merged, which overwrite nested data
-            data = _.assign(_.isObject(base) ? base : {}, utils.updateToFirestoreObject(changes));
+            data = _.assign(
+              _.isObject(base) ? base : {},
+              utils.updateToFirestoreObject(changes)
+            );
           }
         }
-        data = utils.removeEmptyFirestoreProperties(data, original, utils.getServerTime());
+        data = utils.removeEmptyFirestoreProperties(
+          data,
+          original,
+          utils.getServerTime()
+        );
         self._dataChanged(data);
         resolve(data);
       } else {
@@ -186,15 +212,15 @@ MockFirestoreDocument.prototype._update = function (changes, opts, callback) {
   });
 };
 
-MockFirestoreDocument.prototype.update = function (changes, callback) {
+MockFirestoreDocument.prototype.update = function(changes, callback) {
   return this._update(changes, { setMerge: false }, callback);
 };
 
-MockFirestoreDocument.prototype.delete = function (callback) {
+MockFirestoreDocument.prototype.delete = function(callback) {
   var err = this._nextErr('delete');
   var self = this;
-  return new Promise(function (resolve, reject) {
-    self._defer('delete', _.toArray(arguments), function () {
+  return new Promise(function(resolve, reject) {
+    self._defer('delete', _.toArray(arguments), function() {
       if (callback) callback(err);
       if (err === null) {
         self._dataChanged(null);
@@ -206,7 +232,11 @@ MockFirestoreDocument.prototype.delete = function (callback) {
   });
 };
 
-MockFirestoreDocument.prototype.onSnapshot = function (optionsOrObserverOrOnNext, observerOrOnNextOrOnError, onErrorArg) {
+MockFirestoreDocument.prototype.onSnapshot = function(
+  optionsOrObserverOrOnNext,
+  observerOrOnNextOrOnError,
+  onErrorArg
+) {
   var err = this._nextErr('onSnapshot');
   var self = this;
   var onNext = optionsOrObserverOrOnNext;
@@ -220,13 +250,17 @@ MockFirestoreDocument.prototype.onSnapshot = function (optionsOrObserverOrOnNext
     onError = onErrorArg;
   }
   var context = {
-    data: self._getData(),
+    data: self._getData()
   };
-  var onSnapshot = function (forceTrigger) {
+  var onSnapshot = function(forceTrigger) {
     // compare the current state to the one from when this function was created
     // and send the data to the callback if different.
     if (err === null) {
-      if (!_.isEqual(self.data, context.data) || includeMetadataChanges || forceTrigger) {
+      if (
+        !_.isEqual(self.data, context.data) ||
+        includeMetadataChanges ||
+        forceTrigger
+      ) {
         onNext(new DocumentSnapshot(self.id, self.ref, self._getData()));
         context.data = self._getData();
       }
@@ -244,20 +278,19 @@ MockFirestoreDocument.prototype.onSnapshot = function (optionsOrObserverOrOnNext
   return unsubscribe;
 };
 
-
 /**
  * Fetches the subcollections that are direct children of the document.
  * @see https://cloud.google.com/nodejs/docs/reference/firestore/0.15.x/DocumentReference#getCollections
  */
-MockFirestoreDocument.prototype.getCollections = function () {
+MockFirestoreDocument.prototype.getCollections = function() {
   var err = this._nextErr('getCollections');
   var self = this;
-  return new Promise(function (resolve, reject) {
-    self._defer('getCollections', _.toArray(arguments), function () {
+  return new Promise(function(resolve, reject) {
+    self._defer('getCollections', _.toArray(arguments), function() {
       if (err === null) {
         var collections = _.toArray(this.children);
         // Filter out empty collections
-        collections = _.filter(collections, function (collection) {
+        collections = _.filter(collections, function(collection) {
           return !_.isEmpty(collection.data);
         });
         resolve(collections);
@@ -268,15 +301,15 @@ MockFirestoreDocument.prototype.getCollections = function () {
   });
 };
 
-MockFirestoreDocument.prototype._hasChild = function (key) {
+MockFirestoreDocument.prototype._hasChild = function(key) {
   return _.isObject(this.data) && _.has(this.data, key);
 };
 
-MockFirestoreDocument.prototype._childData = function (key) {
+MockFirestoreDocument.prototype._childData = function(key) {
   return this._hasChild(key) ? this.data[key] : null;
 };
 
-MockFirestoreDocument.prototype._dataChanged = function (unparsedData) {
+MockFirestoreDocument.prototype._dataChanged = function(unparsedData) {
   this.data = utils.cleanFirestoreData(unparsedData);
   if (this.parent) {
     if (this.data) {
@@ -293,7 +326,11 @@ MockFirestoreDocument.prototype._dataChanged = function (unparsedData) {
   }
 };
 
-MockFirestoreDocument.prototype._defer = function (sourceMethod, sourceArgs, callback) {
+MockFirestoreDocument.prototype._defer = function(
+  sourceMethod,
+  sourceArgs,
+  callback
+) {
   this.queue.push({
     fn: callback,
     context: this,
@@ -308,7 +345,7 @@ MockFirestoreDocument.prototype._defer = function (sourceMethod, sourceArgs, cal
   }
 };
 
-MockFirestoreDocument.prototype._nextErr = function (type) {
+MockFirestoreDocument.prototype._nextErr = function(type) {
   var err = this.errs[type];
   delete this.errs[type];
   return err || null;
