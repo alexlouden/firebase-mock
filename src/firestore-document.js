@@ -158,6 +158,22 @@ MockFirestoreDocument.prototype.set = function(data, opts, callback) {
   });
 };
 
+const isIncrement = val =>
+  val.constructor && val.constructor.name == 'NumericIncrementTransform';
+
+const customizer = (objValue, srcValue) => {
+  // for use in mergeWith / assignWith
+  // adds support for increment operator
+  if (isIncrement(srcValue)) {
+    if (objValue != null) {
+      return objValue + srcValue.operand;
+    } else {
+      // base is undefined
+      return srcValue.operand;
+    }
+  }
+};
+
 MockFirestoreDocument.prototype._update = function(changes, opts, callback) {
   assert.equal(
     typeof changes,
@@ -174,7 +190,7 @@ MockFirestoreDocument.prototype._update = function(changes, opts, callback) {
         var original = _.cloneDeep(base);
         var data;
         if (_opts.setMerge) {
-          data = _.merge(_.isObject(base) ? base : {}, changes);
+          data = _.mergeWith(_.isObject(base) ? base : {}, changes, customizer);
         } else {
           // check if changes contain no nested objects
           if (
@@ -183,15 +199,17 @@ MockFirestoreDocument.prototype._update = function(changes, opts, callback) {
             })
           ) {
             // allow data to be merged, which allows merging of nested data
-            data = _.merge(
+            data = _.mergeWith(
               _.isObject(base) ? base : {},
-              utils.updateToFirestoreObject(changes)
+              utils.updateToFirestoreObject(changes),
+              customizer
             );
           } else {
             // don't allow data to be merged, which overwrite nested data
-            data = _.assign(
+            data = _.assignWith(
               _.isObject(base) ? base : {},
-              utils.updateToFirestoreObject(changes)
+              utils.updateToFirestoreObject(changes),
+              customizer
             );
           }
         }
