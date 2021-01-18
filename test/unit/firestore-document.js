@@ -158,6 +158,21 @@ describe('MockFirestoreDocument', function () {
 
       db.flush();
     });
+
+    it('creates a new doc with value of FieldValue.increment()', function (done) {
+      var createDoc = db.doc('createDoc');
+
+      createDoc.create({titles: Firestore.FieldValue.increment(10)});
+
+      createDoc.get().then(function (snap) {
+        expect(snap.exists).to.equal(true);
+        expect(snap.get('titles')).to.equal(10);
+        done();
+      }).catch(done);
+
+      db.flush();
+    });
+
   });
 
   describe('#set', function () {
@@ -209,6 +224,23 @@ describe('MockFirestoreDocument', function () {
       doc.get().then(function(snap) {
         expect(snap.exists).to.equal(true);
         expect(snap.get('ref')).to.have.property('ref');
+        done();
+      }).catch(done);
+
+      db.flush();
+    });
+
+    it('overrides existing data when using FieldValue.increment()', function (done) {
+      doc.set({
+        titles: 10
+      });
+      doc.set({
+        titles: Firestore.FieldValue.increment(10)
+      });
+
+      doc.get().then(function (snap) {
+        expect(snap.exists).to.equal(true);
+        expect(snap.data()).to.deep.equal({titles: 10});
         done();
       }).catch(done);
 
@@ -413,6 +445,37 @@ describe('MockFirestoreDocument', function () {
       db.flush();
     });
 
+    it('adds to existing data when using FieldValue.increment()', function (done) {
+      doc.set({
+        titles: 10
+      });
+      doc.update({
+        titles: Firestore.FieldValue.increment(10)
+      });
+
+      doc.get().then(function (snap) {
+        expect(snap.exists).to.equal(true);
+        expect(snap.data()).to.deep.equal({titles: 20});
+        done();
+      }).catch(done);
+
+      db.flush();
+    });
+
+    it('sets when no existing data exists when using FieldValue.increment()', function (done) {
+      doc.set({
+        titles: Firestore.FieldValue.increment(10)
+      });
+
+      doc.get().then(function (snap) {
+        expect(snap.exists).to.equal(true);
+        expect(snap.data()).to.deep.equal({titles: 10});
+        done();
+      }).catch(done);
+
+      db.flush();
+    });
+
     it('does not merge nested properties recursively by default', function (done) {
       doc.set({
         nested: {
@@ -561,6 +624,73 @@ describe('MockFirestoreDocument', function () {
     });
   });
 
+  describe('#listCollections', function () {
+    beforeEach(function () {
+      db.doc('doc/subcol/subcol-doc').set({ foo: 'bar' });
+      db.doc('doc/subcol2/subcol-doc').set({ foo: 'bar' });
+      db.doc('doc/subcol/subcol-doc/deep-col/deep-doc').set({ foo: 'bar' });
+      db.doc('doc/subcol/subcol-doc/deep-col2/deep-doc').set({ foo: 'bar' });
+      db.flush();
+    });
+    afterEach(function () {
+      db.doc('doc/subcol/subcol-doc').delete();
+      db.doc('doc/subcol2/subcol-doc').delete();
+      db.doc('doc/subcol/subcol-doc/deep-col/deep-doc').delete();
+      db.doc('doc/subcol/subcol-doc/deep-col2/deep-doc').delete();
+      db.flush();
+    });
+
+    context('when present', function () {
+      it('returns collections of document', function (done) {
+        db.doc('doc').listCollections().then(function (colRefs) {
+          expect(colRefs).to.be.an('array');
+          expect(colRefs).to.have.length(2);
+          expect(colRefs[0].path).to.equal('doc/subcol');
+          expect(colRefs[1].path).to.equal('doc/subcol2');
+          done();
+        });
+        db.flush();
+      });
+
+      it('returns deeply nested collections of document', function (done) {
+        db.doc('doc/subcol/subcol-doc').listCollections().then(function (colRefs) {
+          expect(colRefs).to.be.an('array');
+          expect(colRefs).to.have.length(2);
+          expect(colRefs[0].path).to.equal('doc/subcol/subcol-doc/deep-col');
+          expect(colRefs[1].path).to.equal('doc/subcol/subcol-doc/deep-col2');
+          done();
+        });
+        db.flush();
+      });
+    });
+
+    context('when not present', function () {
+      it('returns empty list of collections', function (done) {
+        db.doc('not-existing').listCollections().then(function (colRefs) {
+          expect(colRefs).to.be.an('array');
+          expect(colRefs).to.have.length(0);
+          done();
+        });
+        db.flush();
+      });
+
+      it('skips collections that has no documents', function (done) {
+        db.doc('doc/subcol/subcol-doc').delete();
+        db.doc('doc/subcol2/subcol-doc').delete();
+        db.doc('doc/subcol/subcol-doc/deep-col/deep-doc').delete();
+        db.doc('doc/subcol/subcol-doc/deep-col2/deep-doc').delete();
+        db.flush();
+
+        db.doc('doc').listCollections().then(function (colRefs) {
+          expect(colRefs).to.be.an('array');
+          expect(colRefs).to.have.length(0);
+          done();
+        });
+        db.flush();
+      });
+    });
+  });
+
   describe('#onSnapshot', function () {
     it('calls observer with initial state', function (done) {
       doc.onSnapshot(function(snap) {
@@ -577,7 +707,7 @@ describe('MockFirestoreDocument', function () {
         if (!first) {
           expect(snap.get('newTitle')).to.equal('A new title');
           done();
-        }  
+        }
 
         first = false;
       });
@@ -587,7 +717,7 @@ describe('MockFirestoreDocument', function () {
 
     it('does not call observer when no changes occur', function (done) {
       var first = true;
-      
+
       doc.onSnapshot(function(snap) {
         if (!first) throw new Error('Observer called unexpectedly!');
         first = false;
