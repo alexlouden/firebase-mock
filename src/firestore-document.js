@@ -118,7 +118,7 @@ MockFirestoreDocument.prototype.create = function(data, callback) {
       if (err === null) {
         var serverTime = utils.getServerTime();
         var result = new WriteResult(Timestamp.fromMillis(serverTime));
-        data = utils.removeEmptyFirestoreProperties(data, serverTime);
+        data = utils.removeEmptyFirestoreProperties(data, null, serverTime);
         self._dataChanged(data);
         resolve(result);
       } else {
@@ -144,6 +144,7 @@ MockFirestoreDocument.prototype.set = function(data, opts, callback) {
       if (err === null) {
         data = utils.removeEmptyFirestoreProperties(
           data,
+          null,
           utils.getServerTime()
         );
         self._dataChanged(data);
