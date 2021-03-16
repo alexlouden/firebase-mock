@@ -1,6 +1,6 @@
 {
   "name": "@bonobolabs/firebase-mock",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Firebase mock library for writing unit tests",
   "main": "./src",
   "scripts": {
