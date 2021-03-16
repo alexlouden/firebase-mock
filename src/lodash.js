@@ -1,6 +1,5 @@
 module.exports = {
   assign: require('lodash.assign'),
-  assignWith: require('lodash.assignwith'),
   bind: require('lodash.bind'),
   clone: require('lodash.clone'),
   cloneWith: require('lodash.clonewith'),
@@ -31,12 +30,11 @@ module.exports = {
   keys: require('lodash.keys'),
   map: require('lodash.map'),
   merge: require('lodash.merge'),
-  mergeWith: require('lodash.mergewith'),
   noop: require('lodash.noop'),
   orderBy: require('lodash.orderby'),
   reduce: require('lodash.reduce'),
   remove: require('lodash.remove'),
   size: require('lodash.size'),
   toArray: require('lodash.toarray'),
-  union: require('lodash.union')
+  union: require('lodash.union'),
 };
